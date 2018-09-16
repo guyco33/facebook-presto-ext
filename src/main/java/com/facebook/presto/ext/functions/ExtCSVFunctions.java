@@ -24,20 +24,77 @@ public class ExtCSVFunctions {
 
     private ExtCSVFunctions() {}
 
-    @ScalarFunction("parse_csv_line")
+    @ScalarFunction("parse_csv")
     @Description("parse csv string to array of string values")
     @SqlType("array(varchar)")
     @SqlNullable
-    public static Block parseCSVline(
+    public static Block parseCSV(
             @SqlType(StandardTypes.VARCHAR) Slice str)
     {
-        Reader in = new StringReader(str.toStringUtf8());
+        return parseCSV(str.toStringUtf8(), CSVFormat.DEFAULT.getDelimiter(), '\\');
+    }
+
+    @ScalarFunction("parse_csv")
+    @Description("parse csv string to array of string values")
+    @SqlType("array(varchar)")
+    @SqlNullable
+    public static Block parseCSV(
+            @SqlType(StandardTypes.VARCHAR) Slice str,
+            @SqlType("varchar(1)") Slice delimiter
+            )
+    {
+        char cDelimiter =  (delimiter.length() > 0) ?  delimiter.toStringUtf8().charAt(0) : CSVFormat.DEFAULT.getDelimiter();
+
+        return parseCSV(str.toStringUtf8(), cDelimiter, '\\');
+    }
+
+    @ScalarFunction("parse_csv")
+    @Description("parse csv string to array of string values")
+    @SqlType("array(varchar)")
+    @SqlNullable
+    public static Block parseCSV(
+            @SqlType(StandardTypes.VARCHAR) Slice str,
+            @SqlType("varchar(1)") Slice delimiter,
+            @SqlType(StandardTypes.CHAR) Slice escape
+    )
+    {
+        char cDelimiter =  (delimiter.length() > 0) ?  delimiter.toStringUtf8().charAt(0) : CSVFormat.DEFAULT.getDelimiter();
+        char cEscape = (escape.length() > 0) ?  escape.toStringUtf8().charAt(0) : '\\';
+
+        return parseCSV(str.toStringUtf8(), cDelimiter, cEscape);
+    }
+
+
+    @ScalarFunction("parse_csv")
+    @Description("parse csv string to array of string values")
+    @SqlType("array(array(varchar))")
+    @SqlNullable
+    public static Block parseCSV(
+            @SqlType(StandardTypes.VARCHAR) Slice str,
+            @SqlType("varchar(1)") Slice delimiter,
+            @SqlType(StandardTypes.CHAR) Slice escape,
+            @SqlType(StandardTypes.VARCHAR) Slice record_seperator
+            )
+    {
+        char cDelimiter =  (delimiter.length() > 0) ?  delimiter.toStringUtf8().charAt(0) : CSVFormat.DEFAULT.getDelimiter();
+        char cEscape = (escape.length() > 0) ?  escape.toStringUtf8().charAt(0) : '\\';
+        String cRecordSperator = record_seperator.toStringUtf8();
+
+       return parseCSV(str.toStringUtf8(),cDelimiter , cEscape , cRecordSperator);
+    }
+
+
+    public static Block parseCSV(String str, char delimiter, char escape) {
+        Reader in = new StringReader(str);
         try {
-            CSVParser parser = new CSVParser(in, CSVFormat.DEFAULT);
+            CSVFormat format = CSVFormat.DEFAULT.withDelimiter(delimiter);
+            if (escape != '\\')
+                format = format.withEscape(escape);
+            CSVParser parser = new CSVParser(in, format);
             List<CSVRecord> list = parser.getRecords();
             BlockBuilder blockBuilder = VARCHAR.createBlockBuilder(null, list.get(0).size());
-            for (String col: list.get(0))
-                VARCHAR.writeSlice(blockBuilder, utf8Slice(col));
+            for (String value: list.get(0))
+                VARCHAR.writeSlice(blockBuilder, utf8Slice(value));
             return blockBuilder;
         }
         catch (Exception e) {
@@ -45,16 +102,13 @@ public class ExtCSVFunctions {
         }
     }
 
-    @ScalarFunction("parse_csv")
-    @Description("parse csv string to array of string values")
-    @SqlType("array(array(varchar))")
-    @SqlNullable
-    public static Block parseCSV(
-            @SqlType(StandardTypes.VARCHAR) Slice str)
-    {
-        Reader in = new StringReader(str.toStringUtf8());
+    public static Block parseCSV(String str, char delimiter, char escape, String recordSeparator) {
+        Reader in = new StringReader(str);
         try {
-            CSVParser parser = new CSVParser(in, CSVFormat.DEFAULT);
+            CSVFormat format = CSVFormat.DEFAULT.withDelimiter(delimiter).withRecordSeparator(recordSeparator);
+            if (escape != '\\')
+                format = format.withEscape(escape);
+            CSVParser parser = new CSVParser(in, format);
             List<CSVRecord> records = parser.getRecords();
             ArrayType arrayType = new ArrayType(VARCHAR);
             BlockBuilder recordsBuilder = arrayType.createBlockBuilder(null, records.size());
