@@ -13,6 +13,7 @@ public class ExtFunctionsPlugin implements Plugin {
                 .add(ExtCSVFunctions.class)
                 .add(ExtAuxFunctions.class)
                 .add(ExtStatsFunctions.class)
+                .add(ExtJsonFunctions.class)
                 .build();
     }
 }
