@@ -71,11 +71,16 @@ public class ExtJsonFunctions {
                         key.add(parser.getString());
                         break;
                     case START_ARRAY:
+                        inKey = false;
                         if (qualifiedName && !key.isEmpty())
                             key.set(key.size() - 1, key.get(key.size() - 1) + "*");
                         break;
+                    case END_ARRAY:
+                        if (!key.isEmpty() && key.get(key.size() - 1).endsWith("*"))
+                            key.remove(key.size() - 1);
+                        break;
                     case END_OBJECT:
-                        if (!key.isEmpty())
+                        if (!key.isEmpty() && !key.get(key.size() - 1).endsWith("*"))
                             key.remove(key.size() - 1);
                         break;
                     case VALUE_STRING:
@@ -87,6 +92,10 @@ public class ExtJsonFunctions {
                             result.add(String.join(":", key));
                             key.remove(key.size() - 1);
                             inKey = false;
+                        }
+                        else {
+                            if (!key.isEmpty() && key.get(key.size() - 1).endsWith("*"))
+                                result.add(String.join(":", key));
                         }
                         break;
                 }
